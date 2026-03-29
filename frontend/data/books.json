@@ -1,0 +1,90 @@
+[
+    {
+        "id": 1,
+        "isbn": "9787111111111",
+        "name": "活着",
+        "category": "文学",
+        "publisher": "作家出版社",
+        "borrowCount": 156,
+        "isRecommend": true,
+        "isActive": true,
+        "status": true
+    },
+    {
+        "id": 2,
+        "isbn": "9787111222222",
+        "name": "三体",
+        "category": "科技",
+        "publisher": "重庆出版社",
+        "borrowCount": 289,
+        "isRecommend": true,
+        "isActive": true,
+        "status": true
+    },
+    {
+        "id": 3,
+        "isbn": "9787111333333",
+        "name": "人类简史",
+        "category": "历史",
+        "publisher": "中信出版社",
+        "borrowCount": 178,
+        "isRecommend": true,
+        "isActive": true,
+        "status": true
+    },
+    {
+        "id": 4,
+        "isbn": "9787111444444",
+        "name": "艺术的故事",
+        "category": "艺术",
+        "publisher": "广西美术出版社",
+        "borrowCount": 89,
+        "isRecommend": true,
+        "isActive": true,
+        "status": true
+    },
+    {
+        "id": 5,
+        "isbn": "9787111555555",
+        "name": "围城",
+        "category": "文学",
+        "publisher": "人民文学出版社",
+        "borrowCount": 123,
+        "isRecommend": false,
+        "isActive": true,
+        "status": false
+    },
+    {
+        "id": 6,
+        "isbn": "9787111666666",
+        "name": "代码大全",
+        "category": "科技",
+        "publisher": "电子工业出版社",
+        "borrowCount": 210,
+        "isRecommend": false,
+        "isActive": true,
+        "status": true
+    },
+    {
+        "id": 7,
+        "isbn": "9787111777777",
+        "name": "明朝那些事儿",
+        "category": "历史",
+        "publisher": "浙江人民出版社",
+        "borrowCount": 345,
+        "isRecommend": false,
+        "isActive": true,
+        "status": true
+    },
+    {
+        "id": 8,
+        "isbn": "9787111888888",
+        "name": "苏菲的世界",
+        "category": "哲学",
+        "publisher": "作家出版社",
+        "borrowCount": 167,
+        "isRecommend": false,
+        "isActive": true,
+        "status": true
+    }
+]

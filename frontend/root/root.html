@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书管理系统 - 管理员</title>
+    <link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+    <div id="loginPage" class="login-container">
+        <div class="card login-card">
+            <h1 class="login-title">管理后台</h1>
+            <div class="form-group">
+                <label class="form-label">用户名</label>
+                <input type="text" id="loginUsername" class="input" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">密码</label>
+                <input type="password" id="loginPassword" class="input" placeholder="请输入密码">
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="adminLogin()">登录</button>
+            <div style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
+                测试账号：root / 密码 123
+            </div>
+        </div>
+    </div>
+
+    <div id="mainPage" class="hidden">
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo">管理后台</div>
+                    <div class="nav">
+                        <div class="nav-item active" onclick="switchTab('books')">图书管理</div>
+                        <div class="nav-item" onclick="switchTab('stats')">数据统计</div>
+                        <div class="nav-item" onclick="adminLogout()">退出</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="container">
+                <div id="booksTab">
+                    <div class="card">
+                        <div class="grid grid-3" style="margin-bottom: 20px;">
+                            <button class="btn btn-primary" onclick="showAddBookModal()">+ 入库</button>
+                            <input type="text" id="adminSearchInput" class="input" placeholder="搜索图书...">
+                            <button class="btn" onclick="adminSearchBook()">检索</button>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">借阅期限设置（天）</label>
+                            <input type="number" id="borrowDays" class="input" value="30" style="width: 200px;">
+                            <button class="btn btn-primary btn-small" onclick="saveBorrowDays()" style="margin-left: 12px;">保存</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>书名</th>
+                                    <th>ISBN</th>
+                                    <th>类别</th>
+                                    <th>出版社</th>
+                                    <th>借阅次数</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminBookList"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="statsTab" class="hidden">
+                    <div class="grid grid-2" style="margin-bottom: 40px;">
+                        <div class="card stats-card">
+                            <div class="stats-number" id="userCount">0</div>
+                            <div class="stats-label">注册人数</div>
+                        </div>
+                        <div class="card stats-card">
+                            <div class="stats-number" id="bookCount">0</div>
+                            <div class="stats-label">图书数量</div>
+                        </div>
+                    </div>
+
+                    <h3 class="section-title">已逾期</h3>
+                    <div class="card">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>学号</th>
+                                    <th>姓名</th>
+                                    <th>书名</th>
+                                    <th>逾期天数</th>
+                                </tr>
+                            </thead>
+                            <tbody id="overdueList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="addBookModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div class="card" style="width: 100%; max-width: 500px;">
+            <h3 class="section-title">添加图书</h3>
+            <div class="form-group">
+                <label class="form-label">ISBN</label>
+                <input type="text" id="newISBN" class="input" placeholder="请输入ISBN">
+            </div>
+            <div class="form-group">
+                <label class="form-label">书名</label>
+                <input type="text" id="newBookName" class="input" placeholder="请输入书名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">类别</label>
+                <input type="text" id="newCategory" class="input" placeholder="请输入类别">
+            </div>
+            <div class="form-group">
+                <label class="form-label">出版社</label>
+                <input type="text" id="newPublisher" class="input" placeholder="请输入出版社">
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="btn" onclick="hideAddBookModal()">取消</button>
+                <button class="btn btn-primary" onclick="addBook()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editBookModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div class="card" style="width: 100%; max-width: 500px;">
+            <h3 class="section-title">编辑图书</h3>
+            <input type="hidden" id="editBookId">
+            <div class="form-group">
+                <label class="form-label">ISBN</label>
+                <input type="text" id="editISBN" class="input" placeholder="请输入ISBN">
+            </div>
+            <div class="form-group">
+                <label class="form-label">书名</label>
+                <input type="text" id="editBookName" class="input" placeholder="请输入书名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">类别</label>
+                <input type="text" id="editCategory" class="input" placeholder="请输入类别">
+            </div>
+            <div class="form-group">
+                <label class="form-label">出版社</label>
+                <input type="text" id="editPublisher" class="input" placeholder="请输入出版社">
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="btn" onclick="hideEditBookModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveEditBook()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../data/data.js"></script>
+    <script src="../js/admin.js"></script>
+</body>
+</html>
