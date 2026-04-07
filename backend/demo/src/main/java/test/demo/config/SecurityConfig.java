@@ -27,9 +27,15 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
+                // 允许所有图书相关API
                 .requestMatchers("/api/books/**").permitAll()
+                // 允许认证相关API
+                .requestMatchers("/api/auth/register").permitAll()
+                .requestMatchers("/api/auth/login").permitAll()
+                .requestMatchers("/api/auth/refresh").permitAll()
+                .requestMatchers("/api/auth/logout").permitAll()
                 .requestMatchers("/api/admin/**").permitAll()
+                // 其他请求需要认证
                 .anyRequest().authenticated()
             );
         

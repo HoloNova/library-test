@@ -1,6 +1,5 @@
 package test.demo.config;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -13,35 +12,20 @@ import java.util.Arrays;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final BookRepository bookRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    public DataInitializer(UserRepository userRepository, BookRepository bookRepository) {
+        this.userRepository = userRepository;
+        this.bookRepository = bookRepository;
+    }
+
     @Override
     public void run(String... args) {
-        if (userRepository.count() == 0) {
-            User testUser = new User();
-            testUser.setName("测试用户");
-            testUser.setStudyID("123");
-            testUser.setPassword(passwordEncoder.encode("123"));
-            testUser.setOverdueCnt(0);
-            testUser.setIsAdmin(false);
-
-            User adminUser = new User();
-            adminUser.setName("root");
-            adminUser.setStudyID("root");
-            adminUser.setPassword(passwordEncoder.encode("123"));
-            adminUser.setOverdueCnt(0);
-            adminUser.setIsAdmin(true);
-
-            userRepository.saveAll(Arrays.asList(testUser, adminUser));
-            System.out.println("默认用户创建成功！");
-            System.out.println("用户账号: 123 / 123");
-            System.out.println("管理员账号: root / 123");
-        }
+        ensureDefaultUsers();
 
         if (bookRepository.count() == 0) {
             List<Book> books = Arrays.asList(
@@ -64,6 +48,45 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
+    /** 库中已有历史数据时 count()!=0 也会跳过旧逻辑；按 username 补全默认账号避免登录 400。 */
+    private void ensureDefaultUsers() {
+        if (!userRepository.existsByUsername("123")) {
+            userRepository.findByName("123").ifPresentOrElse(u -> {
+                u.setUsername("123");
+                u.setPassword(passwordEncoder.encode("123"));
+                userRepository.save(u);
+                System.out.println("已补齐用户名/密码: 123 / 123");
+            }, () -> {
+                User testUser = new User();
+                testUser.setName("123");
+                testUser.setUsername("123");
+                testUser.setPassword(passwordEncoder.encode("123"));
+                testUser.setOverdueCnt(0);
+                testUser.setIsAdmin(false);
+                userRepository.save(testUser);
+                System.out.println("已创建默认用户: 123 / 123");
+            });
+        }
+        if (!userRepository.existsByUsername("root")) {
+            userRepository.findByName("root").ifPresentOrElse(u -> {
+                u.setUsername("root");
+                u.setPassword(passwordEncoder.encode("123"));
+                u.setIsAdmin(true);
+                userRepository.save(u);
+                System.out.println("已补齐管理员用户名/密码: root / 123");
+            }, () -> {
+                User adminUser = new User();
+                adminUser.setName("root");
+                adminUser.setUsername("root");
+                adminUser.setPassword(passwordEncoder.encode("123"));
+                adminUser.setOverdueCnt(0);
+                adminUser.setIsAdmin(true);
+                userRepository.save(adminUser);
+                System.out.println("已创建管理员: root / 123");
+            });
+        }
+    }
+
     private Book createBook(String isbn, String name, String category, String publisher, int borrowCount, boolean isRecommend) {
         Book book = new Book();
         book.setIsbn(isbn);
@@ -73,7 +96,7 @@ public class DataInitializer implements CommandLineRunner {
         book.setBorrowCount(borrowCount);
         book.setIsRecommend(isRecommend);
         book.setIsActive(true);
-        book.setStatus(true); // 默认可借
+        book.setStatus(true);
         return book;
     }
 }

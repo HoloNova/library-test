@@ -1,6 +1,5 @@
 package test.demo.controller;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import test.demo.dto.ApiResponse;
@@ -14,12 +13,16 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
-@RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class AdminController {
 
     private final AdminService adminService;
     private final BookService bookService;
+
+    public AdminController(AdminService adminService, BookService bookService) {
+        this.adminService = adminService;
+        this.bookService = bookService;
+    }
 
     @GetMapping("/statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics() {

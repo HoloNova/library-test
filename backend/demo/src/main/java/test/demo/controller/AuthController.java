@@ -10,6 +10,7 @@ import test.demo.dto.AuthResponse;
 import test.demo.dto.LoginRequest;
 import test.demo.dto.RegisterRequest;
 import test.demo.service.AuthService;
+import test.demo.util.IpUtil;
 
 import java.util.Map;
 
@@ -26,7 +27,7 @@ public class AuthController {
             @Valid @RequestBody RegisterRequest request,
             HttpServletRequest httpRequest) {
         try {
-            String ipAddress = getClientIpAddress(httpRequest);
+            String ipAddress = IpUtil.getClientIpAddress(httpRequest);
             AuthResponse response = authService.register(request, ipAddress);
             return ResponseEntity.ok(ApiResponse.success("注册成功", response));
         } catch (Exception e) {
@@ -39,7 +40,7 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
         try {
-            String ipAddress = getClientIpAddress(httpRequest);
+            String ipAddress = IpUtil.getClientIpAddress(httpRequest);
             AuthResponse response = authService.login(request, ipAddress);
             return ResponseEntity.ok(ApiResponse.success("登录成功", response));
         } catch (Exception e) {
@@ -69,25 +70,5 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
-    }
-
-    private String getClientIpAddress(HttpServletRequest request) {
-        String ipAddress = request.getHeader("X-Forwarded-For");
-        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
-            ipAddress = request.getHeader("Proxy-Client-IP");
-        }
-        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
-            ipAddress = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
-            ipAddress = request.getHeader("HTTP_CLIENT_IP");
-        }
-        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
-            ipAddress = request.getHeader("HTTP_X_FORWARDED_FOR");
-        }
-        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
-            ipAddress = request.getRemoteAddr();
-        }
-        return ipAddress;
     }
 }
