@@ -5,106 +5,219 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>图书管理系统 - 用户</title>
     <link rel="stylesheet" href="../css/common.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 <body>
-    <div id="loginPage" class="login-container">
-        <div class="card login-card">
-            <h1 class="login-title">图书管理系统</h1>
-            <div class="form-group">
-                <label class="form-label">学号</label>
-                <input type="text" id="loginStudyID" class="input" placeholder="请输入学号">
+    <div id="app">
+        <!-- 登录页面 -->
+        <div v-if="!isLoggedIn" class="login-container">
+            <div class="card login-card">
+                <h1 class="login-title">图书管理系统</h1>
+                
+                <!--login or register-->
+                <div class="tab-group">
+                    <button class="tab" :class="{ active: isLoginView }" @click="isLoginView = true">登录</button>
+                    <button class="tab" :class="{ active: !isLoginView }" @click="isLoginView = false">注册</button>
+                </div>
+
+                <!--login form-->
+                <div v-if="isLoginView">
+                    <div class="form-group">
+                        <label class="form-label">用户ID</label>
+                        <input type="text" v-model="loginForm.username" class="input" placeholder="请输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码</label>
+                        <input type="password" v-model="loginForm.password" class="input" placeholder="请输入密码">
+                    </div>
+                </div>
+
+                <!--register form-->
+                <div v-if="!isLoginView">
+                    <div class="form-group">
+                        <label class="form-label">用户ID</label>
+                        <input type="text" v-model="registerForm.username" class="input" placeholder="请输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码</label>
+                        <input type="password" v-model="registerForm.password" class="input" placeholder="请输入密码">
+                    </div>
+                    <!--注册时确认密码-->
+                    <div class="form-group">
+                        <label class="form-label">确认密码</label>
+                        <input type="password" v-model="registerForm.confirmPassword" class="input" placeholder="请确认密码">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%;" @click="isLoginView ? login() : register()">{{ isLoginView ? '登录' : '注册' }}</button>
             </div>
-            <div class="form-group">
-                <label class="form-label">密码</label>
-                <input type="password" id="loginPassword" class="input" placeholder="请输入密码">
-            </div>
-            <button class="btn btn-primary" style="width: 100%;" onclick="userLogin()">登录</button>
-            <div style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
-                测试账号：学号 123 / 密码 123
-            </div>
+        </div>
+
+        <!-- 主页面 -->
+        <div v-else>
+            <header class="header">
+                <div class="container">
+                    <div class="header-content">
+                        <div class="logo">图书管理系统</div>
+                        <div class="nav">
+                            <div class="nav-item" :class="{ active: currentTab === 'search' }" @click="switchTab('search')">检索书库</div>
+                            <div class="nav-item" :class="{ active: currentTab === 'borrow' }" @click="switchTab('borrow')">借阅</div>
+                            <div class="nav-item" @click="logout">退出</div>
+                            
+                            <div class="nav-item" @click="logoff">注销</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <div class="container">
+                    <div v-if="hasOverdue" class="alert alert-danger">
+                        您有逾期未还的图书，请尽快归还！
+                    </div>
+
+                    <!-- 检索书库标签页 -->
+                    <div v-show="currentTab === 'search'">
+                        <div class="card">
+                            <div class="form-group">
+                                <input type="text" v-model="searchText" class="input" placeholder="搜索书名、ISBN、出版社...">
+                            </div>
+                            <div id="categoryTags">
+                                <span class="tag" :class="{ active: currentCategory === 'all' }" @click="filterByCategory('all')">全部</span>
+                                <span class="tag" :class="{ active: currentCategory === '文学' }" @click="filterByCategory('文学')">文学</span>
+                                <span class="tag" :class="{ active: currentCategory === '科技' }" @click="filterByCategory('科技')">科技</span>
+                                <span class="tag" :class="{ active: currentCategory === '历史' }" @click="filterByCategory('历史')">历史</span>
+                                <span class="tag" :class="{ active: currentCategory === '艺术' }" @click="filterByCategory('艺术')">艺术</span>
+                                <span class="tag" :class="{ active: currentCategory === '哲学' }" @click="filterByCategory('哲学')">哲学</span>
+                            </div>
+                        </div>
+
+                        <!-- 推荐图书 -->
+                        <div v-show="!searchText && currentCategory == 'all'">
+                            <h3 class="section-title">推荐图书</h3>
+                            <div v-if="loading" class="loading">加载中...</div>
+                            <div v-else-if="recommendBooks.length === 0" class="no-data">暂无推荐图书</div>
+                            <div v-else class="grid grid-4">
+                                <div v-for="book in recommendBooks" :key="book.id" class="book-item">
+                                    <div class="book-title">
+                                        {{ book.name }}
+                                        <span class="book-status" :class="book.status ? 'status-available' : 'status-unavailable'">
+                                            {{ book.status ? '可借' : '不可借' }}
+                                        </span>
+                                    </div>
+                                    <div class="book-info">{{ book.publisher }} · 借阅 {{ book.borrowCount }} 次</div>
+                                    <div class="book-actions">
+                                        <button class="btn btn-primary btn-small" @click="borrowBook(book.id)" :disabled="!book.status">借阅</button>
+                                        <button class="btn btn-success btn-small" @click="reserveBook(book.id)" :disabled="!book.status">预约</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 图书列表 -->
+                        <h3 class="section-title" style="margin-top: 40px;">图书列表</h3>
+                        <div v-if="loading" class="loading">加载中...</div>
+                        <div v-else-if="filteredBooks.length === 0" class="no-data">
+                            {{ searchText ? '未找到匹配的图书' : '暂无图书数据' }}
+                        </div>
+                        <div v-else class="grid grid-4">
+                            <div v-for="book in paginatedBooks" :key="book.id" class="book-item">
+                                <div class="book-title">
+                                    {{ book.name }}
+                                    <span class="book-status" :class="book.status ? 'status-available' : 'status-unavailable'">
+                                        {{ book.status ? '可借' : '不可借' }}
+                                    </span>
+                                </div>
+                                <div class="book-info">{{ book.publisher }} · 借阅 {{ book.borrowCount }} 次</div>
+                                <div class="book-actions">
+                                    <button class="btn btn-primary btn-small" @click="borrowBook(book.id)" :disabled="!book.status">借阅</button>
+                                    <button class="btn btn-success btn-small" @click="reserveBook(book.id)" :disabled="!book.status">预约</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!--新增分页按钮-->
+                        <div class="pagination">
+                            <button @click="resetPage" :disabled="pageNum===1">首页</button>
+                            <button @click="prevPage" :disabled="pageNum === 1">上一页</button>
+                            <div class="page-input">
+                                <input
+                                    type="number"
+                                    v-model.number="inputPageNum"
+                                    placeholder="please input"
+                                    min="1"
+                                    :max="totalPage"
+                                >
+                                <button @click="toPage">跳转</button>
+                            </div>
+                            <button @click="nextPage" :disabled="pageNum === totalPage">下一页</button> 
+                        </div>
+                    </div>
+
+                    <!-- 借阅标签页 -->
+                    <div v-show="currentTab === 'borrow'">
+                        <h3 class="section-title">当前借阅</h3>
+                        <div class="card">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>书名</th>
+                                        <th>出版社</th>
+                                        <th>到期时间</th>
+                                        <th>距今</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="item in currentBorrows" :key="item.recordId">
+                                        <td>{{ item.bookName }}</td>
+                                        <td>{{ item.publisher }}</td>
+                                        <td>{{ formatDate(item.dueDate) }}</td>
+                                        <td :class="isOverdue(item.dueDate) ? 'text-red' : 'text-green'">
+                                            {{ isOverdue(item.dueDate) ? `逾期 ${Math.abs(getDaysLeft(item.dueDate))} 天` : `${getDaysLeft(item.dueDate)} 天` }}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-danger btn-small" @click="returnBook(item.recordId)">归还</button>
+                                            <button class="btn btn-success btn-small" @click="renewBook(item.recordId)">续期</button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="currentBorrows.length === 0">
+                                        <td colspan="5" style="text-align: center; color: #666;">暂无借阅记录</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h3 class="section-title" style="margin-top: 40px;">历史借阅</h3>
+                        <div class="card">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>书名</th>
+                                        <th>出版社</th>
+                                        <th>借阅时间</th>
+                                        <th>归还时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="item in borrowHistory" :key="item.bookId + '-' + formatDate(item.borrowDate)">
+                                        <td>{{ item.bookName }}</td>
+                                        <td>{{ item.publisher }}</td>
+                                        <td>{{ formatDate(item.borrowDate) }}</td>
+                                        <td>{{ formatDate(item.returnDate) }}</td>
+                                    </tr>
+                                    <tr v-if="borrowHistory.length === 0">
+                                        <td colspan="4" style="text-align: center; color: #666;">暂无历史借阅记录</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
-    <div id="mainPage" class="hidden">
-        <header class="header">
-            <div class="container">
-                <div class="header-content">
-                    <div class="logo">图书管理系统</div>
-                    <div class="nav">
-                        <div class="nav-item active" onclick="switchTab('search')">检索书库</div>
-                        <div class="nav-item" onclick="switchTab('borrow')">借阅</div>
-                        <div class="nav-item" onclick="userLogout()">退出</div>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <main class="main-content">
-            <div class="container">
-                <div id="overdueAlert" class="alert alert-danger hidden">
-                    您有逾期未还的图书，请尽快归还！
-                </div>
-
-                <div id="searchTab">
-                    <div class="card">
-                        <div class="form-group">
-                            <input type="text" id="searchInput" class="input" placeholder="搜索书名、ISBN、出版社...">
-                        </div>
-                        <div id="categoryTags">
-                            <span class="tag active" onclick="filterByCategory('all')">全部</span>
-                            <span class="tag" onclick="filterByCategory('文学')">文学</span>
-                            <span class="tag" onclick="filterByCategory('科技')">科技</span>
-                            <span class="tag" onclick="filterByCategory('历史')">历史</span>
-                            <span class="tag" onclick="filterByCategory('艺术')">艺术</span>
-                            <span class="tag" onclick="filterByCategory('哲学')">哲学</span>
-                        </div>
-                    </div>
-
-                    <div id="recommendSection">
-                        <h3 class="section-title">推荐图书</h3>
-                        <div id="recommendBooks" class="grid grid-4"></div>
-                    </div>
-
-                    <h3 class="section-title" style="margin-top: 40px;">图书列表</h3>
-                    <div id="bookList" class="grid grid-4"></div>
-                </div>
-
-                <div id="borrowTab" class="hidden">
-                    <h3 class="section-title">当前借阅</h3>
-                    <div id="currentBorrows" class="card">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>书名</th>
-                                    <th>出版社</th>
-                                    <th>到期时间</th>
-                                    <th>距今</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="currentBorrowsBody"></tbody>
-                        </table>
-                    </div>
-
-                    <h3 class="section-title" style="margin-top: 40px;">历史借阅</h3>
-                    <div id="historyBorrows" class="card">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>书名</th>
-                                    <th>出版社</th>
-                                    <th>借阅时间</th>
-                                    <th>归还时间</th>
-                                </tr>
-                            </thead>
-                            <tbody id="historyBorrowsBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <script src="../js/user.js"></script>
+    <script src="../js/user-vue.js"></script>
 </body>
 </html>
