@@ -15,5 +15,6 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     List<BorrowRecord> findByUserAndIsReturnedTrueOrderByCreatedAtDesc(User user);
     List<BorrowRecord> findByIsReturnedFalseAndDueDateBefore(LocalDateTime date);
     boolean existsByUserAndBookAndIsReturnedFalse(User user, Book book);
+    boolean existsByUserAndIsReturnedFalse(User user);
     List<BorrowRecord> findByBookAndIsReturnedFalse(Book book);
 }

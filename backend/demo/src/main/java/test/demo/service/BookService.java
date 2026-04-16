@@ -12,7 +12,6 @@ import test.demo.repository.BorrowRecordRepository;
 import test.demo.repository.UserRepository;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -116,6 +115,7 @@ public class BookService {
         record.setIsReturned(false);
         
         book.setBorrowCount(book.getBorrowCount() + 1);
+        book.setIsActive(false);
         bookRepository.save(book);
         
         return borrowRecordRepository.save(record);

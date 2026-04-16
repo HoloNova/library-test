@@ -38,8 +38,7 @@ public class AdminService {
             Book book = record.getBook();
             long overdueDays = LocalDateTime.now().until(record.getDueDate(), java.time.temporal.ChronoUnit.DAYS);
             
-            item.put("studyID", user.getStudyID());
-            item.put("name", user.getName());
+            item.put("username", user.getUsername());
             item.put("bookName", book.getName());
             item.put("overdueDays", Math.abs(overdueDays));
             

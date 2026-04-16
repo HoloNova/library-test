@@ -71,4 +71,14 @@ public class AuthController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
+
+    @PostMapping("/logoff/{userId}")
+    public ResponseEntity<ApiResponse<Void>> logoff(@PathVariable Long userId) {
+        try {
+            authService.logoff(userId);
+            return ResponseEntity.ok(ApiResponse.success("注销成功", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage())); 
+        }
+    }
 }

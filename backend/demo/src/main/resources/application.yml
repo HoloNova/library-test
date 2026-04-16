@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: library-system
+  datasource:
+    url: jdbc:mysql://localhost:3306/library?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 523152
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format-sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+server:
+  port: 8080
+
+jwt:
+  secret: library-management-system-secret-key-2024-very-long-secret
+  access-token-expiration: 7200000
+  refresh-token-expiration: 604800000
+
+cors:
+  allowed-origins:
+    - http://localhost:3000
+    - http://127.0.0.1:5500
+
+borrow:
+  default-days: 30

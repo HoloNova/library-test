@@ -51,14 +51,14 @@ public class DataInitializer implements CommandLineRunner {
     /** 库中已有历史数据时 count()!=0 也会跳过旧逻辑；按 username 补全默认账号避免登录 400。 */
     private void ensureDefaultUsers() {
         if (!userRepository.existsByUsername("123")) {
-            userRepository.findByName("123").ifPresentOrElse(u -> {
+            userRepository.findByUsername("123").ifPresentOrElse(u -> {
                 u.setUsername("123");
                 u.setPassword(passwordEncoder.encode("123"));
                 userRepository.save(u);
                 System.out.println("已补齐用户名/密码: 123 / 123");
             }, () -> {
                 User testUser = new User();
-                testUser.setName("123");
+                testUser.setUsername("123");
                 testUser.setUsername("123");
                 testUser.setPassword(passwordEncoder.encode("123"));
                 testUser.setOverdueCnt(0);
@@ -68,7 +68,7 @@ public class DataInitializer implements CommandLineRunner {
             });
         }
         if (!userRepository.existsByUsername("root")) {
-            userRepository.findByName("root").ifPresentOrElse(u -> {
+            userRepository.findByUsername("root").ifPresentOrElse(u -> {
                 u.setUsername("root");
                 u.setPassword(passwordEncoder.encode("123"));
                 u.setIsAdmin(true);
@@ -76,7 +76,7 @@ public class DataInitializer implements CommandLineRunner {
                 System.out.println("已补齐管理员用户名/密码: root / 123");
             }, () -> {
                 User adminUser = new User();
-                adminUser.setName("root");
+                adminUser.setUsername("root");
                 adminUser.setUsername("root");
                 adminUser.setPassword(passwordEncoder.encode("123"));
                 adminUser.setOverdueCnt(0);

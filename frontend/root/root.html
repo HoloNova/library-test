@@ -5,159 +5,552 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>图书管理系统 - 管理员</title>
     <link rel="stylesheet" href="../css/common.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 <body>
-    <div id="loginPage" class="login-container">
-        <div class="card login-card">
-            <h1 class="login-title">管理后台</h1>
-            <div class="form-group">
-                <label class="form-label">用户名</label>
-                <input type="text" id="loginUsername" class="input" placeholder="请输入用户名">
+    <div id="app">
+        <!-- 登录页面 -->
+        <div v-if="!isLoggedIn" class="login-container">
+            <div class="card login-card">
+                <h1 class="login-title">管理后台</h1>
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" v-model="loginForm.username" class="input" placeholder="请输入用户名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" v-model="loginForm.password" class="input" placeholder="请输入密码">
+                </div>
+                <button class="btn btn-primary" style="width: 100%;" @click="login">登录</button>
+                <div style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
+                    测试账号：root / 密码 123
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">密码</label>
-                <input type="password" id="loginPassword" class="input" placeholder="请输入密码">
+        </div>
+
+        <!-- 主页面 -->
+        <div v-else>
+            <header class="header">
+                <div class="container">
+                    <div class="header-content">
+                        <div class="logo">管理后台</div>
+                        <div class="nav">
+                            <div class="nav-item" :class="{ active: currentTab === 'books' }" @click="currentTab = 'books'">图书管理</div>
+                            <div class="nav-item" :class="{ active: currentTab === 'stats' }" @click="currentTab = 'stats'">数据统计</div>
+                            <div class="nav-item" @click="logout">退出</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <div class="container">
+                    <!-- 图书管理标签页 -->
+                    <div v-show="currentTab === 'books'">
+                        <div class="card">
+                            <div class="grid grid-3" style="margin-bottom: 20px;">
+                                <button class="btn btn-primary" @click="showAddBookModal = true">+ 入库</button>
+                                <input type="text" v-model="searchText" class="input" placeholder="搜索图书...">
+                                <button class="btn" @click="searchBooks">检索</button>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">借阅期限设置（天）</label>
+                                <input type="number" v-model.number="borrowDays" class="input" style="width: 200px;">
+                                <button class="btn btn-primary btn-small" @click="saveBorrowDays" style="margin-left: 12px;">保存</button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>书名</th>
+                                        <th>ISBN</th>
+                                        <th>类别</th>
+                                        <th>出版社</th>
+                                        <th>借阅次数</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="book in books" :key="book.id">
+                                        <td>{{ book.name }}</td>
+                                        <td>{{ book.isbn }}</td>
+                                        <td>{{ book.category }}</td>
+                                        <td>{{ book.publisher }}</td>
+                                        <td>{{ book.borrowCount }}</td>
+                                        <td>{{ book.status ? '可借' : '不可借' }}</td>
+                                        <td>
+                                            <button class="btn btn-success btn-small" @click="editBook(book)">编辑</button>
+                                            <button class="btn btn-danger btn-small" @click="deleteBook(book.id)">删除</button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="books.length === 0">
+                                        <td colspan="7" style="text-align: center; color: #666;">暂无图书数据</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 数据统计标签页 -->
+                    <div v-show="currentTab === 'stats'">
+                        <div class="grid grid-2" style="margin-bottom: 40px;">
+                            <div class="card stats-card">
+                                <div class="stats-number">{{ userCount }}</div>
+                                <div class="stats-label">注册人数</div>
+                            </div>
+                            <div class="card stats-card">
+                                <div class="stats-number">{{ bookCount }}</div>
+                                <div class="stats-label">图书数量</div>
+                            </div>
+                        </div>
+
+                        <h3 class="section-title">已逾期</h3>
+                        <div class="card">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>学号</th>
+                                        <th>姓名</th>
+                                        <th>书名</th>
+                                        <th>逾期天数</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="item in overdueList" :key="item.id">
+                                        <td>{{ item.studyId }}</td>
+                                        <td>{{ item.username }}</td>
+                                        <td>{{ item.bookName }}</td>
+                                        <td>{{ item.overdueDays }}</td>
+                                    </tr>
+                                    <tr v-if="overdueList.length === 0">
+                                        <td colspan="4" style="text-align: center; color: #666;">暂无逾期记录</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- 添加图书模态框 -->
+        <div v-if="showAddBookModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+            <div class="card" style="width: 100%; max-width: 500px;">
+                <h3 class="section-title">添加图书</h3>
+                <div class="form-group">
+                    <label class="form-label">ISBN</label>
+                    <input type="text" v-model="newBook.isbn" class="input" placeholder="请输入ISBN">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">书名</label>
+                    <input type="text" v-model="newBook.name" class="input" placeholder="请输入书名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">类别</label>
+                    <input type="text" v-model="newBook.category" class="input" placeholder="请输入类别">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出版社</label>
+                    <input type="text" v-model="newBook.publisher" class="input" placeholder="请输入出版社">
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn" @click="showAddBookModal = false">取消</button>
+                    <button class="btn btn-primary" @click="addBook">确定</button>
+                </div>
             </div>
-            <button class="btn btn-primary" style="width: 100%;" onclick="adminLogin()">登录</button>
-            <div style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
-                测试账号：root / 密码 123
+        </div>
+
+        <!-- 编辑图书模态框 -->
+        <div v-if="showEditBookModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+            <div class="card" style="width: 100%; max-width: 500px;">
+                <h3 class="section-title">编辑图书</h3>
+                <input type="hidden" v-model="editBook.id">
+                <div class="form-group">
+                    <label class="form-label">ISBN</label>
+                    <input type="text" v-model="editBook.isbn" class="input" placeholder="请输入ISBN">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">书名</label>
+                    <input type="text" v-model="editBook.name" class="input" placeholder="请输入书名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">类别</label>
+                    <input type="text" v-model="editBook.category" class="input" placeholder="请输入类别">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出版社</label>
+                    <input type="text" v-model="editBook.publisher" class="input" placeholder="请输入出版社">
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn" @click="showEditBookModal = false">取消</button>
+                    <button class="btn btn-primary" @click="saveEditBook">保存</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="mainPage" class="hidden">
-        <header class="header">
-            <div class="container">
-                <div class="header-content">
-                    <div class="logo">管理后台</div>
-                    <div class="nav">
-                        <div class="nav-item active" onclick="switchTab('books')">图书管理</div>
-                        <div class="nav-item" onclick="switchTab('stats')">数据统计</div>
-                        <div class="nav-item" onclick="adminLogout()">退出</div>
-                    </div>
-                </div>
-            </div>
-        </header>
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api';
 
-        <main class="main-content">
-            <div class="container">
-                <div id="booksTab">
-                    <div class="card">
-                        <div class="grid grid-3" style="margin-bottom: 20px;">
-                            <button class="btn btn-primary" onclick="showAddBookModal()">+ 入库</button>
-                            <input type="text" id="adminSearchInput" class="input" placeholder="搜索图书...">
-                            <button class="btn" onclick="adminSearchBook()">检索</button>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">借阅期限设置（天）</label>
-                            <input type="number" id="borrowDays" class="input" value="30" style="width: 200px;">
-                            <button class="btn btn-primary btn-small" onclick="saveBorrowDays()" style="margin-left: 12px;">保存</button>
-                        </div>
-                    </div>
+        // Token管理器
+        const TokenManager = {
+            getAccessToken() {
+                return localStorage.getItem('adminAccessToken');
+            },
+            getRefreshToken() {
+                return localStorage.getItem('adminRefreshToken');
+            },
+            setTokens(accessToken, refreshToken) {
+                localStorage.setItem('adminAccessToken', accessToken);
+                localStorage.setItem('adminRefreshToken', refreshToken);
+            },
+            clearTokens() {
+                localStorage.removeItem('adminAccessToken');
+                localStorage.removeItem('adminRefreshToken');
+            }
+        };
 
-                    <div class="card">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>书名</th>
-                                    <th>ISBN</th>
-                                    <th>类别</th>
-                                    <th>出版社</th>
-                                    <th>借阅次数</th>
-                                    <th>状态</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminBookList"></tbody>
-                        </table>
-                    </div>
-                </div>
+        // API服务
+        const apiService = {
+            async request(url, options = {}) {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...(options.headers || {})
+                };
+                
+                const token = TokenManager.getAccessToken();
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
 
-                <div id="statsTab" class="hidden">
-                    <div class="grid grid-2" style="margin-bottom: 40px;">
-                        <div class="card stats-card">
-                            <div class="stats-number" id="userCount">0</div>
-                            <div class="stats-label">注册人数</div>
-                        </div>
-                        <div class="card stats-card">
-                            <div class="stats-number" id="bookCount">0</div>
-                            <div class="stats-label">图书数量</div>
-                        </div>
-                    </div>
+                try {
+                    const response = await axios({
+                        url: API_BASE_URL + url,
+                        method: options.method || 'GET',
+                        data: options.body ?? null,
+                        headers
+                    });
+                    return response.data;
+                } catch (error) {
+                    if (error.response && error.response.status === 401) {
+                        const refreshed = await this.refreshToken();
+                        if (refreshed) {
+                            return this.request(url, options);
+                        }
+                        TokenManager.clearTokens();
+                        window.location.reload();
+                        return null;
+                    }
+                    throw error;
+                }
+            },
 
-                    <h3 class="section-title">已逾期</h3>
-                    <div class="card">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>学号</th>
-                                    <th>姓名</th>
-                                    <th>书名</th>
-                                    <th>逾期天数</th>
-                                </tr>
-                            </thead>
-                            <tbody id="overdueList"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
+            async refreshToken() {
+                const refreshToken = TokenManager.getRefreshToken();
+                if (!refreshToken) return false;
 
-    <div id="addBookModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
-        <div class="card" style="width: 100%; max-width: 500px;">
-            <h3 class="section-title">添加图书</h3>
-            <div class="form-group">
-                <label class="form-label">ISBN</label>
-                <input type="text" id="newISBN" class="input" placeholder="请输入ISBN">
-            </div>
-            <div class="form-group">
-                <label class="form-label">书名</label>
-                <input type="text" id="newBookName" class="input" placeholder="请输入书名">
-            </div>
-            <div class="form-group">
-                <label class="form-label">类别</label>
-                <input type="text" id="newCategory" class="input" placeholder="请输入类别">
-            </div>
-            <div class="form-group">
-                <label class="form-label">出版社</label>
-                <input type="text" id="newPublisher" class="input" placeholder="请输入出版社">
-            </div>
-            <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                <button class="btn" onclick="hideAddBookModal()">取消</button>
-                <button class="btn btn-primary" onclick="addBook()">确定</button>
-            </div>
-        </div>
-    </div>
+                try {
+                    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+                        refreshToken: refreshToken
+                    }, {
+                        headers: { 'Content-Type': 'application/json' }
+                    });
 
-    <div id="editBookModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
-        <div class="card" style="width: 100%; max-width: 500px;">
-            <h3 class="section-title">编辑图书</h3>
-            <input type="hidden" id="editBookId">
-            <div class="form-group">
-                <label class="form-label">ISBN</label>
-                <input type="text" id="editISBN" class="input" placeholder="请输入ISBN">
-            </div>
-            <div class="form-group">
-                <label class="form-label">书名</label>
-                <input type="text" id="editBookName" class="input" placeholder="请输入书名">
-            </div>
-            <div class="form-group">
-                <label class="form-label">类别</label>
-                <input type="text" id="editCategory" class="input" placeholder="请输入类别">
-            </div>
-            <div class="form-group">
-                <label class="form-label">出版社</label>
-                <input type="text" id="editPublisher" class="input" placeholder="请输入出版社">
-            </div>
-            <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                <button class="btn" onclick="hideEditBookModal()">取消</button>
-                <button class="btn btn-primary" onclick="saveEditBook()">保存</button>
-            </div>
-        </div>
-    </div>
+                    if (response.data && response.data.success) {
+                        TokenManager.setTokens(response.data.data.accessToken, response.data.data.refreshToken);
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('刷新Token失败:', error);
+                }
+                return false;
+            },
 
-    <script src="../data/data.js"></script>
-    <script src="../js/admin.js"></script>
+            // 管理员登录
+            async login(username, password) {
+                return this.request('/auth/login', {
+                    method: 'POST',
+                    body: { username, password }
+                });
+            },
+
+            // 图书管理
+            async getBooks() {
+                return this.request('/admin/books');
+            },
+
+            async addBook(book) {
+                return this.request('/admin/books', {
+                    method: 'POST',
+                    body: book
+                });
+            },
+
+            async updateBook(book) {
+                return this.request(`/admin/books/${book.id}`, {
+                    method: 'PUT',
+                    body: book
+                });
+            },
+
+            async deleteBook(bookId) {
+                return this.request(`/admin/books/${bookId}`, {
+                    method: 'DELETE'
+                });
+            },
+
+            // 数据统计
+            async getStats() {
+                return this.request('/admin/stats');
+            },
+
+            // 逾期记录
+            async getOverdue() {
+                return this.request('/admin/overdue');
+            },
+
+            // 借阅期限设置
+            async getBorrowDays() {
+                return this.request('/admin/borrow-days');
+            },
+
+            async setBorrowDays(days) {
+                return this.request('/admin/borrow-days', {
+                    method: 'PUT',
+                    body: { days }
+                });
+            }
+        };
+
+        // Vue 应用
+        const app = Vue.createApp({
+            data() {
+                return {
+                    // 登录状态
+                    isLoggedIn: false,
+                    loginForm: {
+                        username: '',
+                        password: ''
+                    },
+
+                    // 页面状态
+                    currentTab: 'books',
+                    searchText: '',
+                    borrowDays: 30,
+
+                    // 数据
+                    books: [],
+                    userCount: 0,
+                    bookCount: 0,
+                    overdueList: [],
+
+                    // 模态框状态
+                    showAddBookModal: false,
+                    showEditBookModal: false,
+
+                    // 图书表单
+                    newBook: {
+                        isbn: '',
+                        name: '',
+                        category: '',
+                        publisher: ''
+                    },
+                    editBook: {
+                        id: '',
+                        isbn: '',
+                        name: '',
+                        category: '',
+                        publisher: ''
+                    }
+                };
+            },
+
+            mounted() {
+                // 检查登录状态
+                const token = TokenManager.getAccessToken();
+                if (token) {
+                    this.isLoggedIn = true;
+                    this.loadData();
+                }
+            },
+
+            methods: {
+                // 登录
+                async login() {
+                    if (!this.loginForm.username || !this.loginForm.password) {
+                        alert('请填写用户名和密码!');
+                        return;
+                    }
+
+                    try {
+                        const result = await apiService.login(this.loginForm.username, this.loginForm.password);
+                        if (result && result.success) {
+                            TokenManager.setTokens(result.data.accessToken, result.data.refreshToken);
+                            this.isLoggedIn = true;
+                            this.loadData();
+                        } else {
+                            alert(result.message || '登录失败');
+                        }
+                    } catch (error) {
+                        console.error('登录失败:', error);
+                        alert('登录失败，请检查网络连接');
+                    }
+                },
+
+                // 退出
+                logout() {
+                    TokenManager.clearTokens();
+                    this.isLoggedIn = false;
+                    this.loginForm = { username: '', password: '' };
+                },
+
+                // 加载数据
+                async loadData() {
+                    try {
+                        // 加载图书列表
+                        const booksResult = await apiService.getBooks();
+                        if (booksResult && booksResult.success) {
+                            this.books = booksResult.data || [];
+                            this.bookCount = this.books.length;
+                        }
+
+                        // 加载统计数据
+                        const statsResult = await apiService.getStats();
+                        if (statsResult && statsResult.success) {
+                            this.userCount = statsResult.data.userCount || 0;
+                        }
+
+                        // 加载逾期记录
+                        const overdueResult = await apiService.getOverdue();
+                        if (overdueResult && overdueResult.success) {
+                            this.overdueList = overdueResult.data || [];
+                        }
+
+                        // 加载借阅期限
+                        const borrowDaysResult = await apiService.getBorrowDays();
+                        if (borrowDaysResult && borrowDaysResult.success) {
+                            this.borrowDays = borrowDaysResult.data || 30;
+                        }
+                    } catch (error) {
+                        console.error('加载数据失败:', error);
+                    }
+                },
+
+                // 搜索图书
+                async searchBooks() {
+                    try {
+                        const result = await apiService.getBooks();
+                        if (result && result.success) {
+                            let filteredBooks = result.data || [];
+                            if (this.searchText) {
+                                const searchLower = this.searchText.toLowerCase();
+                                filteredBooks = filteredBooks.filter(book => 
+                                    book.name.toLowerCase().includes(searchLower) ||
+                                    book.isbn.includes(searchLower) ||
+                                    book.publisher.toLowerCase().includes(searchLower)
+                                );
+                            }
+                            this.books = filteredBooks;
+                        }
+                    } catch (error) {
+                        console.error('搜索图书失败:', error);
+                    }
+                },
+
+                // 保存借阅期限
+                async saveBorrowDays() {
+                    try {
+                        const result = await apiService.setBorrowDays(this.borrowDays);
+                        if (result && result.success) {
+                            alert('借阅期限设置成功');
+                        } else {
+                            alert(result.message || '设置失败');
+                        }
+                    } catch (error) {
+                        console.error('保存借阅期限失败:', error);
+                        alert('保存失败，请重试');
+                    }
+                },
+
+                // 添加图书
+                async addBook() {
+                    if (!this.newBook.isbn || !this.newBook.name || !this.newBook.category || !this.newBook.publisher) {
+                        alert('请填写完整的图书信息');
+                        return;
+                    }
+
+                    try {
+                        const result = await apiService.addBook(this.newBook);
+                        if (result && result.success) {
+                            alert('图书添加成功');
+                            this.showAddBookModal = false;
+                            this.newBook = { isbn: '', name: '', category: '', publisher: '' };
+                            this.loadData();
+                        } else {
+                            alert(result.message || '添加失败');
+                        }
+                    } catch (error) {
+                        console.error('添加图书失败:', error);
+                        alert('添加失败，请重试');
+                    }
+                },
+
+                // 编辑图书
+                editBook(book) {
+                    this.editBook = { ...book };
+                    this.showEditBookModal = true;
+                },
+
+                // 保存编辑
+                async saveEditBook() {
+                    if (!this.editBook.isbn || !this.editBook.name || !this.editBook.category || !this.editBook.publisher) {
+                        alert('请填写完整的图书信息');
+                        return;
+                    }
+
+                    try {
+                        const result = await apiService.updateBook(this.editBook);
+                        if (result && result.success) {
+                            alert('图书编辑成功');
+                            this.showEditBookModal = false;
+                            this.loadData();
+                        } else {
+                            alert(result.message || '编辑失败');
+                        }
+                    } catch (error) {
+                        console.error('编辑图书失败:', error);
+                        alert('编辑失败，请重试');
+                    }
+                },
+
+                // 删除图书
+                async deleteBook(bookId) {
+                    if (!confirm('确定要删除这本书吗？')) {
+                        return;
+                    }
+
+                    try {
+                        const result = await apiService.deleteBook(bookId);
+                        if (result && result.success) {
+                            alert('图书删除成功');
+                            this.loadData();
+                        } else {
+                            alert(result.message || '删除失败');
+                        }
+                    } catch (error) {
+                        console.error('删除图书失败:', error);
+                        alert('删除失败，请重试');
+                    }
+                }
+            }
+        });
+
+        // 挂载应用
+        app.mount('#app');
+    </script>
 </body>
 </html>

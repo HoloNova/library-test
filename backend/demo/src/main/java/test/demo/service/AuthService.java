@@ -12,6 +12,7 @@ import test.demo.dto.RegisterRequest;
 import test.demo.entity.LoginAttempt;
 import test.demo.entity.RefreshToken;
 import test.demo.entity.User;
+import test.demo.repository.BorrowRecordRepository;
 import test.demo.repository.LoginAttemptRepository;
 import test.demo.repository.RefreshTokenRepository;
 import test.demo.repository.UserRepository;
@@ -26,6 +27,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final BorrowRecordRepository borrowRecordRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final LoginAttemptRepository loginAttemptRepository;
     private final JwtConfig jwtConfig;
@@ -35,24 +37,27 @@ public class AuthService {
     private long refreshTokenExpiration;
 
     public AuthResponse register(RegisterRequest request, String ipAddress) {
-        if (userRepository.existsByName(request.getName())) {
+        if (userRepository.existsByUsername(request.getUsername())) {
             throw new RuntimeException("用户名已存在");
         }
-        if (userRepository.existsByStudyID(request.getStudyID())) {
-            throw new RuntimeException("学号已注册");
-        }
         
-        long sameIpCount = loginAttemptRepository.findByIpAddressContaining(
-            ipAddress.split("\\.")[0] + "." + ipAddress.split("\\.")[1]
-        ).stream().count();
+
+        String ipPrefix= "";
+        String[] ipParts = ipAddress.split("\\.");
+        if (ipParts.length >= 2) {
+            ipPrefix = ipParts[0] + "." + ipParts[1];
+        } else {
+            ipPrefix = ipAddress; // 如果IP地址格式不正确，直接使用原始IP
+        }
+
+        long sameIpCount = loginAttemptRepository.findByIpAddressContaining(ipPrefix).stream().count();
         
         if (sameIpCount >= 3) {
             throw new RuntimeException("同一IP注册用户过多，请稍后再试");
         }
 
         User user = new User();
-        user.setName(request.getName());
-        user.setStudyID(request.getStudyID());
+        user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setOverdueCnt(0);
         user.setIsAdmin(false);
@@ -66,12 +71,8 @@ public class AuthService {
         checkLoginAttempt(ipAddress);
         
         Optional<User> userOpt;
-        if (request.getUsername().matches("\\d+")) {
-            userOpt = userRepository.findByStudyID(request.getUsername());
-        } else {
-            userOpt = userRepository.findByName(request.getUsername());
-        }
-        
+        userOpt = userRepository.findByUsername(request.getUsername());
+
         if (userOpt.isEmpty() || !passwordEncoder.matches(request.getPassword(), userOpt.get().getPassword())) {
             recordFailedAttempt(ipAddress);
             throw new RuntimeException("用户名或密码错误");
@@ -94,13 +95,13 @@ public class AuthService {
         }
         
         User user = refreshToken.getUser();
-        String accessToken = jwtConfig.generateAccessToken(user.getId(), user.getName(), user.getIsAdmin());
+        String accessToken = jwtConfig.generateAccessToken(user.getId(), user.getUsername(), user.getIsAdmin());
         
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenStr)
                 .userId(user.getId())
-                .username(user.getName())
+                .username(user.getUsername())
                 .isAdmin(user.getIsAdmin())
                 .build();
     }
@@ -110,15 +111,27 @@ public class AuthService {
         refreshTokenRepository.findByToken(refreshTokenStr).ifPresent(refreshTokenRepository::delete);
     }
 
+    public void logoff(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        boolean hasUnreturned = borrowRecordRepository.existsByUserAndIsReturnedFalse(user);
+        if (hasUnreturned) {
+            throw new RuntimeException("无法注销账号，请先归还所有借阅的书籍");
+        }
+        refreshTokenRepository.findByUser(user).ifPresent(refreshTokenRepository::delete);
+        userRepository.delete(user);
+    }
+
     private AuthResponse createAuthResponse(User user) {
-        String accessToken = jwtConfig.generateAccessToken(user.getId(), user.getName(), user.getIsAdmin());
+        String accessToken = jwtConfig.generateAccessToken(user.getId(), user.getUsername(), user.getIsAdmin());
         String refreshTokenStr = generateRefreshToken(user);
         
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenStr)
                 .userId(user.getId())
-                .username(user.getName())
+                .username(user.getUsername())
                 .isAdmin(user.getIsAdmin())
                 .build();
     }
